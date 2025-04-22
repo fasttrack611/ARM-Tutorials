@@ -1456,3 +1456,74 @@ void USART3_IRQHandler(void) {
 3. Implement proper interrupt flag handling.
 
 This code provides a foundational template for NVIC interrupt control in bare-metal Cortex-M systems.
+---------------
+
+
+
+1. Operational Modes & Access Levels
+How does the Cortex-M processor handle the transition from Thread Mode to Handler Mode during an interrupt, and what registers are automatically saved?
+
+Explain the implications of running in Unprivileged Thread Mode versus Privileged Thread Mode, including limitations and security considerations.
+
+What happens if an unprivileged thread attempts to access a protected system register? How does the processor respond?
+
+2. Reset Sequence & Startup Code
+Describe the exact steps the Cortex-M processor takes from reset vector fetch to executing the main application, including stack initialization.
+
+What could go wrong if the initial stack pointer value in the vector table is incorrectly set? How would this manifest during debugging?
+
+Why is the reset handler typically written in assembly, and what critical actions must it perform before calling main()?
+
+3. Interrupts & NVIC
+How does the NVIC prioritize interrupts when multiple interrupts occur simultaneously? Explain preemption and tail-chaining.
+
+What is the difference between a pending interrupt and an active interrupt? How are they managed in the NVIC registers?
+
+Explain the consequences of forgetting to clear a pending interrupt flag in both the peripheral and NVIC.
+
+4. Register Set & Special Registers
+How does the CONTROL register influence stack pointer selection (MSP/PSP) and privilege levels? Provide a use case for each configuration.
+
+What is the role of the EXC_RETURN value in the LR register during exception return? How does it determine stack and mode transitions?
+
+Explain the difference between PRIMASK, FAULTMASK, and BASEPRI. When would you use each?
+
+5. Memory Management & Stack
+How does the Cortex-M processor detect stack overflow, and what hardware/software mechanisms can prevent it?
+
+Compare and contrast the Type-1 (single stack) and Type-2 (multi-stack) memory layouts. When would you use each?
+
+What happens if the heap and stack collide in SRAM? How can this be debugged?
+
+6. Exceptions & Fault Handling
+List all possible causes of a HardFault exception. How would you diagnose the root cause using the HFSR and CFSR registers?
+
+Explain the difference between a UsageFault, BusFault, and MemManage Fault. Provide examples of code that could trigger each.
+
+How does the processor handle nested exceptions? What happens if a higher-priority interrupt occurs during a lower-priority ISR?
+
+7. Low-Level Programming & Debugging
+Write assembly code to switch from Privileged Thread Mode to Unprivileged Thread Mode without triggering a fault.
+
+How would you manually trigger an interrupt in software, and what precautions are needed to avoid race conditions?
+
+Explain the purpose of the T bit in the EPSR. What happens if it is accidentally cleared, and how can this be recovered?
+
+8. Peripheral & NVIC Configuration
+Describe the exact bit manipulation required to configure an interrupt priority in the NVIC_IPR registers. Why are only some bits writable?
+
+What is the effect of writing to the STIR register, and how does it differ from setting a pending bit in NVIC_ISPR?
+
+How would you design an RTOS scheduler using PendSV and SysTick exceptions? Explain the role of each.
+
+9. Optimization & Critical Sections
+How can PRIMASK and BASEPRI be used to create atomic operations in Cortex-M? What are the trade-offs of each approach?
+
+Why might disabling interrupts (CPSID I) during a critical section lead to missed real-time deadlines? How can this be mitigated?
+
+10. Advanced Topics
+Explain how the MPU can be used to enforce memory protection in an RTOS environment. What registers are involved?
+
+What is the purpose of the ICR (Interrupt Clear Register) in a peripheral like USART? How does it interact with the NVIC?
+
+How does the processor handle a spurious interrupt (e.g., an IRQ with no ISR defined)?
