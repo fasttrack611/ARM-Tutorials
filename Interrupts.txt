@@ -1,0 +1,610 @@
+Thanks for the clarification — you're referring to **ARM7+** processors with **external interrupt controllers**.
+
+Here's how it typically works:
+
+---
+
+### 🔧 ARM7 and External Interrupt Controllers (EIC)
+
+**ARM7TDMI** (and similar ARM7-based microcontrollers) don’t include a built-in interrupt controller like Cortex-M NVIC. Instead:
+
+- The **interrupt controller is external** to the CPU core.
+- Vendors provide their **own interrupt controller logic** in silicon around the ARM7 core.
+- The controller handles **IRQ** (normal interrupt) and **FIQ** (fast interrupt).
+
+---
+
+### 🧠 How It Works
+
+1. **ARM7 core** has two interrupt lines:
+   - `IRQ` (Interrupt Request)
+   - `FIQ` (Fast Interrupt Request)
+
+2. **External Interrupt Controller (EIC)**:
+   - Monitors external/internal events (e.g., GPIO, timers, peripherals)
+   - Maps them to either IRQ or FIQ lines.
+   - Sets interrupt flags and priorities.
+   - The firmware checks the controller to find **which source triggered the IRQ**.
+
+---
+
+### 📦 Example: LPC2148 (ARM7TDMI-S by NXP)
+
+- It has a **Vectored Interrupt Controller (VIC)**.
+- VIC supports up to **32 interrupt sources**.
+- Only **16 of them can be vectored** (direct jump to ISR), others use a common handler.
+- You can assign **priority** and **ISR address** for each.
+
+---
+
+### 💡 Key Points:
+
+| Feature              | Description |
+|----------------------|-------------|
+| IRQ / FIQ            | Two lines to ARM7 core |
+| EIC or VIC           | Vendor-specific controller (e.g., VIC in NXP LPC series) |
+| Interrupt Vector Table | Software must define ISRs in a table |
+| Edge/Level Sensitive | Usually configurable per interrupt source |
+| Interrupt Priorities | Supported in many implementations (e.g., VIC) |
+
+---
+
+### 📜 Sample Code Snippet (LPC2148 - VIC):
+
+VICIntSelect &= ~(1 << 4);  // Use IRQ for Timer0
+VICVectCntl0 = (1 << 5) | 4;  // Enable slot 0, interrupt source 4 (Timer0)
+VICVectAddr0 = (unsigned)timer0_ISR;  // Address of ISR
+VICIntEnable = (1 << 4);  // Enable Timer0 interrupt
+
+---
+
+Would you like details on a specific ARM7-based chip or how to set up an interrupt for a peripheral like a GPIO or timer?
+
+Great question! Here's a breakdown of **ARM-based microcontrollers that don’t have a built-in interrupt controller like the NVIC** (used in Cortex-M cores):
+
+---
+
+### 🚫 ARM Cores Without Built-in Interrupt Controllers (like NVIC)
+
+These older ARM cores **rely on external or vendor-supplied interrupt controllers**:
+
+| **ARM Core**        | **Built-in Interrupt Controller?** | **Interrupt Handling**                      |
+|---------------------|------------------------------------|---------------------------------------------|
+| **ARM7TDMI**        | ❌ No                              | Uses external interrupt controller (VIC etc.) |
+| **ARM9 (ARM920T, ARM926EJ-S)** | ❌ No                   | Interrupt controller provided by chip vendor |
+| **ARM10**           | ❌ No                              | Requires external interrupt controller        |
+| **ARM11**           | ❌ No                              | External or vendor-specific controller       |
+
+---
+
+### ✅ ARM Cores With NVIC (Built-in Interrupt Controller)
+
+These are part of the **ARM Cortex-M family**, which always includes **NVIC**:
+
+| **ARM Cortex-M Core** | **Built-in Interrupt Controller** |
+|------------------------|-----------------------------------|
+| **Cortex-M0 / M0+**    | ✅ NVIC                          |
+| **Cortex-M3**          | ✅ NVIC                          |
+| **Cortex-M4**          | ✅ NVIC                          |
+| **Cortex-M7**          | ✅ NVIC                          |
+| **Cortex-M23 / M33**   | ✅ NVIC                          |
+| **Cortex-M55**         | ✅ NVIC                          |
+
+---
+
+### 🔧 Summary
+
+- **Legacy ARM cores (ARM7, ARM9, ARM10, ARM11)** ➜ ❌ No NVIC, use external or vendor-specific interrupt controllers like VIC.
+- **Modern Cortex-M cores** ➜ ✅ Have NVIC built-in (more efficient, faster, better ISR handling).
+
+---
+
+Would you like a list of real microcontrollers using ARM7 or ARM9 that require external interrupt controllers?
+
+------------
+
+
+Great question! Let's walk through **how interrupts are handled in systems with external interrupt controllers (EIC)** like those used in **ARM7** or **ARM9-based microcontrollers**.
+
+---
+
+### 🔄 Basic Interrupt Flow with an External Interrupt Controller (like VIC or AIC):
+
+#### 1. **Peripheral Generates Interrupt**
+- A hardware peripheral (e.g., Timer, UART, GPIO) detects an event.
+- It **sets an interrupt flag** in its own control register.
+
+#### 2. **External Interrupt Controller Detects It**
+- The EIC (like VIC or AIC) **monitors all interrupt lines** from peripherals.
+- It sees the pending interrupt and:
+  - Records it in a **pending register**.
+  - Applies **priority** rules.
+  - Decides whether to raise `IRQ` or `FIQ` to the CPU core.
+
+#### 3. **EIC Signals ARM Core**
+- The controller **raises the IRQ or FIQ line** to the ARM core.
+- ARM7/ARM9 jumps to a **fixed interrupt vector address** (e.g., `0x18` for IRQ).
+
+#### 4. **Software ISR Dispatches**
+- In the IRQ vector, you write a generic **handler stub**.
+- That stub checks the EIC to **read which peripheral caused the interrupt**.
+- Then it jumps to the appropriate **Interrupt Service Routine (ISR)**.
+
+#### 5. **Interrupt Acknowledgement**
+- Inside the ISR, you:
+  - Clear the interrupt flag in the **peripheral**.
+  - Tell the EIC (VIC/AIC) the interrupt is handled (e.g., clear its pending bit).
+
+---
+
+### 🧠 Example: Vectored Interrupt Controller (VIC) in LPC2148
+
+```c
+void __irq IRQ_Handler(void) {
+    void (*isr)(void);
+    isr = (void (*)(void))VICVectAddr;  // Get ISR address from VIC
+    (*isr)();                            // Call actual ISR
+    VICVectAddr = 0;                    // Signal end of interrupt
+}
+```
+
+---
+
+### 💡 Key Responsibilities of External Interrupt Controllers:
+
+| Feature                | Role                                                                 |
+|------------------------|----------------------------------------------------------------------|
+| **Interrupt vectoring**| Stores addresses of ISRs (if vectored)                              |
+| **Prioritization**     | Resolves which interrupt to handle if multiple are pending          |
+| **Masking/Enabling**   | Controls which interrupts are allowed to signal the CPU             |
+| **IRQ vs FIQ routing** | Routes interrupts based on urgency/priority                         |
+| **Status Registers**   | Tells software which interrupt source is pending                    |
+
+---
+
+### 🔄 Compared to NVIC in Cortex-M:
+
+| Feature         | External Controller (VIC, AIC) | NVIC (Cortex-M) |
+|----------------|-------------------------------|-----------------|
+| Integrated?     | ❌ External to ARM core        | ✅ Built-in      |
+| ISR vectoring   | ✅ (some support it)           | ✅ Yes           |
+| Nested interrupts | ❌ Manual software support   | ✅ Automatic     |
+| Simplicity      | ❌ More complex                | ✅ Easier to use |
+
+---
+
+Timer0 triggers interrupt → VIC sees it → sets IRQ → 
+ARM7 jumps to IRQ_Handler → IRQ_Handler reads ISR address from VIC →
+Jumps to timer0_ISR → Handles interrupt → Return → Clears VICVectAddr
+
+
+
+When interrupt happens, the external interrupt controller:
+Sees which peripheral caused it.
+Based on priorities, it prepares a status (or sometimes a direct ISR address).
+Inside the generic IRQ handler (stub), you read a register in the controller:
+This tells you which interrupt source is active or Directly gives you the address of the ISR to call.
+
+Style | Description | Example
+Vectoring (smart) | VIC gives the ISR address directly. | ISR_Ptr = VICVectAddr; (*ISR_Ptr)();
+Polling (manual) | You manually check status bits to find the source. | if (VICIRQStatus & (1<<4)) uart0_ISR();
+
+
+void __irq IRQ_Handler(void)
+{
+    void (*ISR_Ptr)(void);
+    
+    ISR_Ptr = (void (*)(void)) VICVectAddr;  // VIC already knows the highest-priority source
+    (*ISR_Ptr)();                            // Call the ISR function
+    
+    VICVectAddr = 0;                         // Write to VICVectAddr to signal "done"
+}
+
+✅ Here, VICVectAddr points to the correct ISR address.
+✅ VIC automatically figured out which peripheral triggered first.
+
+
+Step | Action
+Peripheral triggers interrupt | External controller captures it
+Generic stub runs 			  | Asks controller "who?"
+Controller answers 			  | Either with ISR address (vector) or interrupt ID (polling)
+Stub calls ISR 				  | ISR handles the peripheral event
+
+Awesome! Let's go a little deeper with memory layout / address mapping during interrupt handling on ARM7 systems (like LPC2148).
+
+Address (Hex)   | Purpose | Notes
+0x00 	    	| Reset Vector | CPU jumps here on reset
+0x04		    | Undefined Instruction Vector | -
+0x08 			| Software Interrupt Vector | -
+0x0C 			| Prefetch Abort Vector | -
+0x10 			| Data Abort Vector | -
+0x14			| (Reserved) | -
+0x18			| IRQ Vector | CPU jumps here when IRQ triggered  <==== 
+0x1C 			| FIQ Vector | -
+
+
+So when any interrupt occurs (say from Timer0), ARM7 automatically jumps to 0x18.
+✅ The code at 0x18 is usually something like:
+
+
+ldr pc, =IRQ_Handler   ; Branch to C-level IRQ handler (generic stub)
+
+Inside IRQ_Handler
+Now, inside IRQ_Handler, you read a special register from VIC (at a fixed address):
+
+
+Register 	 	| Address (Example for LPC2148) | Purpose
+VICIRQStatus 	| 0xFFFFF000 					| Shows which interrupt is active
+VICVectAddr  	| 0xFFFFF030 					| Holds ISR address (highest priority active)
+VICVectAddr0-15 | 0xFFFFF100 - 0xFFFFF13C 		| Pre-programmed addresses for each vector slot
+
+
+ When the stub reads VICVectAddr, VIC automatically provides the ISR address for the active interrupt.
+
+✅ The stub branches (calls) that ISR.
+
+✅ After ISR execution, VICVectAddr is written with 0 to tell VIC: I'm done.
+
+[ Timer0 expires ]
+       ↓
+[ Timer0 sets interrupt request ]
+       ↓
+[ VIC sees it, prioritizes it ]
+       ↓
+[ VIC raises IRQ line to ARM7 core ]
+       ↓
+[ ARM7 jumps to address 0x18 ]
+       ↓
+[ 0x18 code loads IRQ_Handler ]
+       ↓
+[ IRQ_Handler reads VICVectAddr ]
+       ↓
+[ Jumps to Timer0_ISR ]
+       ↓
+[ Timer0_ISR clears its interrupt flag ]
+       ↓
+[ IRQ_Handler writes 0 to VICVectAddr ]
+       ↓
+[ Normal execution resumes ]
+
+
+----------
+Excellent question — this is where the magic of **setup before runtime** comes in. The **vector address register doesn’t "know" on its own** — **you, the programmer, tell it which handler to call** during initialization.
+
+Let me break it down for you clearly:
+
+---
+
+## 🔁 How `VICVectAddrX` Stores the ISR Address
+
+### 🔹 What happens before any interrupt?
+
+During **initialization**, you tell the VIC:
+- Which **interrupt source** (e.g., Timer0, UART) goes into which vector slot.
+- What **function (ISR)** should be called when that source triggers.
+
+### ✅ Example: Setting Up a Timer0 Interrupt
+
+```c
+VICIntEnable |= (1 << 4);               // Enable Timer0 interrupt (bit 4)
+
+VICVectCntl0 = (1 << 5) | 4;            // Slot 0: Enable it (bit 5) + set source as INT#4 (Timer0)
+VICVectAddr0 = (unsigned)timer0_ISR;    // Store address of the Timer0 ISR
+
+
+https://www.nxp.com/docs/en/user-guide/UM10139.pdf
+
+---
+
+## 🧠 How Does It Work?
+
+Let’s say Timer0 fires an interrupt:
+
+1. **VIC sees INT#4 is active.**
+2. It checks all vector slots (`VICVectCntl0`–`VICVectCntl15`) to see **which one is assigned to INT#4.**
+3. Finds it's assigned to slot 0.
+4. Pulls the **ISR address** from `VICVectAddr0`.
+5. Loads that address into the **global `VICVectAddr` register**.
+6. The **generic IRQ handler** reads `VICVectAddr` and calls the function there.
+
+---
+
+### 🔄 So the decision happens like this:
+
+| Step | Role |
+|------|------|
+| At init time | You map interrupt source X to a vector slot and tell it the ISR address |
+| At runtime   | VIC checks which source is active, finds which slot it's mapped to, and loads its ISR address into `VICVectAddr` |
+| IRQ handler  | Reads `VICVectAddr` and calls that function |
+
+---
+
+### 🎯 Quick Analogy:
+
+Think of `VICVectAddr0–15` as **a row of lockers**, and you put the ISR addresses inside.
+
+Then when an interrupt happens, VIC:
+- Checks which locker is assigned to the interrupt.
+- Opens it.
+- Finds the correct ISR address.
+- Hands it to your generic handler.
+
+---
+
+=======================================================================================
+
+Interrupt handling with NVIC  ( cortex m3 M4 ) 
+=======================================================================================
+
+### Interrupt Handling in Cortex-M4 Processors
+
+Interrupts in the Cortex-M4 are managed by the **Nested Vectored Interrupt Controller (NVIC)**, which provides low-latency and efficient interrupt handling. 
+Below is a detailed explanation of how interrupts are handled, followed by a specific scenario with step-by-step execution.
+
+---
+
+### **General Steps for Interrupt Handling**
+1. **Interrupt Occurs**  
+   - A peripheral or software triggers an interrupt, setting the corresponding interrupt request (IRQ) line.
+   - The NVIC evaluates the interrupt's priority (configurable) and checks if it can preempt the current execution.
+
+2. **Processor Response**  
+   - If the interrupt has higher priority than the current execution (and is not masked), the processor:
+     - Completes the current instruction (except for load/store multiple instructions, which can be interrupted).
+     - Saves the current context (registers) to the stack (automatic hardware stacking).
+
+3. **Fetching the Interrupt Handler Address**  
+   - The NVIC generates the exception number and uses the **Vector Table** (stored in memory) to fetch the address of the corresponding **Interrupt Service Routine (ISR)**.
+
+4. **Executing the ISR**  
+   - The processor jumps to the ISR and starts executing it in **Handler Mode** (privileged mode).
+
+5. **Return from Interrupt**  
+   - The ISR completes and executes a **return instruction** (e.g., `BX LR` with a special `EXC_RETURN` value).
+   - The processor restores the saved context from the stack and resumes the interrupted code.
+
+---
+
+### **Specific Scenario: Handling a UART Receive Interrupt**
+Assume a UART peripheral generates an interrupt when data is received.
+
+#### **Step-by-Step Execution**
+1. **UART Receives Data**  
+   - The UART peripheral detects incoming data and sets its interrupt flag.
+   - The NVIC receives the interrupt request (e.g., `UART_IRQn`).
+
+2. **NVIC Evaluates Priority**  
+   - The NVIC compares the UART interrupt’s priority with the current execution priority (from `BASEPRI`, `PRIMASK`, or running task).
+   - If the UART interrupt has higher priority, the NVIC signals the processor to handle it.
+
+3. **Context Saving (Hardware Stacking)**  
+   - The processor automatically pushes the following registers onto the current stack (MSP or PSP):
+     - Program Counter (PC)
+     - Processor Status Register (xPSR)
+     - General-purpose registers (R0-R3, R12)
+     - Link Register (LR) is updated to a special value (`EXC_RETURN`).
+
+4. **Fetching the ISR Address**  
+   - The NVIC calculates the exception vector address (e.g., `0x00000000 + 4 * (16 + UART_IRQn)`).
+   - The processor jumps to the UART ISR (defined in the vector table).
+
+5. **Executing the ISR**  
+   - The UART ISR reads the received data from the UART data register.
+   - It clears the UART interrupt flag (to avoid retriggering).
+   - Additional processing (e.g., storing data in a buffer) may occur.
+
+6. **Return from Interrupt**  
+   - The ISR ends with a `BX LR` instruction, where `LR` contains `EXC_RETURN` (e.g., `0xFFFFFFF9` for return to Thread Mode using MSP).
+   - The processor restores the saved registers from the stack.
+   - Execution resumes at the instruction where the interrupt occurred.
+
+---
+
+### **Key Registers Involved**
+- **NVIC Registers**:
+  - `NVIC_ISER` (Interrupt Set Enable Register) – Enables interrupts.
+  - `NVIC_ICPR` (Interrupt Clear Pending Register) – Clears pending interrupts.
+  - `NVIC_IPR` (Interrupt Priority Register) – Sets interrupt priorities.
+- **Processor Registers**:
+  - `PRIMASK` – Disables all interrupts if set to 1.
+  - `FAULTMASK` – Disables all interrupts except NMI.
+  - `BASEPRI` – Masks interrupts below a certain priority.
+  - `LR` (Link Register) – Holds `EXC_RETURN` to indicate return behavior.
+
+---
+
+### **Example Code for UART Interrupt Setup**
+```c
+#include <stdint.h>
+#include "stm32f4xx.h"  // Example for STM32F4
+
+void UART_IRQHandler(void) {
+    if (USART2->SR & USART_SR_RXNE) {  // Check if data received
+        uint8_t data = USART2->DR;     // Read data
+        // Process data (e.g., store in buffer)
+    }
+}
+
+int main(void) {
+    // Enable UART2 interrupt in NVIC
+    NVIC_EnableIRQ(USART2_IRQn);
+    NVIC_SetPriority(USART2_IRQn, 1);  // Set priority
+
+    // Configure UART2 to generate RX interrupt
+    USART2->CR1 |= USART_CR1_RXNEIE;   // Enable RX interrupt
+    USART2->CR1 |= USART_CR1_UE;       // Enable UART
+
+    while (1) { /* Main loop */ }
+}
+```
+
+---
+
+### **Summary**
+1. **Interrupt Triggered**: Peripheral sets interrupt flag.
+2. **NVIC Processing**: Priority check and acknowledgment.
+3. **Hardware Stacking**: Saves context to stack.
+4. **ISR Execution**: Jumps to handler in vector table.
+5. **Return**: Restores context and resumes execution.
+
+This mechanism ensures **low-latency** and **deterministic** interrupt handling, critical for real-time systems. The Cortex-M4’s NVIC automates most steps, reducing software overhead.
+
+
+======================================
+
+
+### **Fetching the ISR Address: Default vs. Custom Handlers**
+
+#### **1. Default Handler vs. Custom Handler**
+- **Default Handler**:  
+  - If no custom ISR is defined for an interrupt, the processor uses a **default handler** (usually named `Default_Handler` or `HardFault_Handler` for faults).  
+  - This is often an infinite loop (`while(1)`), indicating an unhandled interrupt.  
+  - Example (from startup code):
+    ```c
+    void Default_Handler(void) {
+        while(1);  // Stuck here if no custom handler is defined
+    }
+    ```
+  - The vector table (at `0x00000000`) initially points all unused interrupts to this default handler.
+
+- **Custom Handler**:  
+  - To override the default, you define your own ISR (e.g., `UART_IRQHandler`).  
+  - The linker script ensures the custom ISR address replaces the default in the vector table.  
+  - Example:
+    ```c
+    void USART2_IRQHandler(void) {  // Custom UART handler
+        if (USART2->SR & USART_SR_RXNE) {
+            uint8_t data = USART2->DR;  // Read received data
+            // Process data (e.g., store in a buffer)
+        }
+    }
+    ```
+
+---
+
+#### **2. How the Correct Handler is Fetched**
+- The NVIC calculates the ISR address using:
+  ```
+  ISR_Address = Vector_Table_Base + (Exception_Number × 4)
+  ```
+  - `Exception_Number = 16 + IRQn` (e.g., `UART_IRQn = 38` ⇒ Exception #54).  
+  - For `UART2` on STM32F4 (`IRQn=38`):
+    ```
+    ISR_Address = 0x00000000 + 4 × (16 + 38) = 0x000000D8
+    ```
+  - The processor reads the 32-bit value at `0x000000D8` (the ISR address) and jumps to it.
+
+- **Vector Table Setup**:  
+  - The vector table is typically defined in the **startup file** (e.g., `startup_stm32f4xx.s`).  
+  - Custom handlers replace the defaults in the table. Example (simplified):
+    ```c
+    // Vector table (excerpt)
+    __Vectors:
+        DCD     _estack                 // Stack pointer
+        DCD     Reset_Handler           // Reset handler
+        DCD     NMI_Handler             // NMI
+        ...
+        DCD     USART2_IRQHandler       // UART2 interrupt (IRQ 38)
+    ```
+
+---
+
+#### **3. How to Assign a Custom Handler**
+1. **Declare the ISR Function**  
+   - Use the exact name matching the vector table (e.g., `USART2_IRQHandler` for STM32 UART2).  
+   - Weak symbols in the startup file allow overriding:
+     ```c
+     // In startup_stm32f4xx.s (weak alias for default)
+     .weak USART2_IRQHandler
+     .thumb_set USART2_IRQHandler,Default_Handler
+     ```
+
+2. **Implement the Custom Handler**  
+   - Define the function in your code (usually in `stm32f4xx_it.c` or main application):
+     ```c
+     void USART2_IRQHandler(void) {
+         // Handle UART2 interrupt
+     }
+     ```
+
+3. **Linker Ensures Correct Address**  
+   - The linker script places the custom handler’s address in the vector table, replacing the weak default.
+
+---
+
+#### **4. Example: Full Flow for UART Interrupt**
+1. **UART Receives Data** → Triggers `USART2_IRQn` (IRQ 38).  
+2. **NVIC Fetches Handler Address**:
+   - Calculates: `0x00000000 + 4 × (16 + 38) = 0x000000D8`.  
+   - Reads `0x000000D8` (points to `USART2_IRQHandler`).  
+3. **Processor Jumps to `USART2_IRQHandler`** (custom ISR).  
+4. **ISR Executes** (reads data, clears flags, etc.).  
+5. **Return via `BX LR`** (with `EXC_RETURN` value).  
+
+---
+
+### **Key Takeaways**
+- **Default Handler**: Infinite loop (debugging aid) if no custom ISR is defined.  
+- **Custom Handler**: Override the weak default by defining the exact ISR name (e.g., `USART2_IRQHandler`).  
+- **Vector Table**: Maps IRQ numbers to ISR addresses. Modified by the linker when custom handlers exist.  
+
+### **Why This Matters**
+- **Efficiency**: Cortex-M4’s hardware stacking and vector table provide **deterministic** interrupt handling.  
+- **Flexibility**: Custom handlers let you prioritize critical tasks (e.g., UART data processing).  
+- **Safety**: Default handlers catch unconfigured interrupts (avoiding silent failures).  
+
+For a practical implementation, refer to your MCU’s **startup file** and **reference manual** for IRQ naming conventions.
+
+=================
+
+
+Sure! In the **latest ARM Cortex-M** cores (like M33, M55, M85), interrupt handling usually uses the **NVIC** and a central function like `generic_handle_irq()` (or similar), especially in OS environments like **CMSIS, Zephyr, or Linux (on Cortex-A/R)**.
+
+But since you're asking about **Cortex-M (latest)**, here’s a modern-style **`generic_handle_irq()`-like function** used in bare metal or RTOS-style systems with NVIC:
+
+---
+
+### ✅ Example: `generic_handle_irq()` for Cortex-M33/M55/M85
+
+```c
+#include "cmsis.h"
+
+void generic_handle_irq(void) {
+    uint32_t active_irq;
+
+    // 1. Read the active IRQ number from IPSR (Interrupt Program Status Register)
+    __asm volatile("mrs %0, ipsr" : "=r" (active_irq));
+
+    // 2. Subtract 16 because IRQ0 starts from exception number 16
+    active_irq -= 16;
+
+    // 3. Call user-defined handler (this table must be defined by you)
+    if (active_irq < MAX_IRQS && irq_vector_table[active_irq] != NULL) {
+        irq_vector_table[active_irq]();
+    }
+}
+```
+
+---
+
+### 🔧 Requirements:
+
+- You need to define a global `irq_vector_table[]`, like:
+
+#define MAX_IRQS 240
+void (*irq_vector_table[MAX_IRQS])(void) = {0};
+
+- During initialization, you can register handlers like:
+
+irq_vector_table[TIMER0_IRQn] = timer0_handler;
+irq_vector_table[UART1_IRQn]  = uart1_handler;
+
+---
+
+### 💡 Why is `IPSR` used?
+
+- The `IPSR` register tells you which interrupt is currently active.
+- Exception numbers 0–15 are for system exceptions (Reset, NMI, SysTick, etc.)
+- Interrupts start at **exception number 16**, so we subtract that.
+
+Would you like an extended version that supports **secure vs non-secure interrupt handling** (TrustZone-aware)?
