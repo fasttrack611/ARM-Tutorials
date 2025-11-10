@@ -1,12 +1,11 @@
 
 
- ARM7+  processors with  external interrupt controllers .
-
+ARM7+  processors with  external interrupt controllers .
 Here's how it typically works:
 
----
+=====================================================================================================
 
-### 🔧 ARM7 and External Interrupt Controllers (EIC)
+###   ARM7 and External Interrupt Controllers (EIC)
 
  ARM7TDMI  (and similar ARM7-based microcontrollers) don’t include a built-in interrupt controller like Cortex-M NVIC. Instead:
 
@@ -14,9 +13,9 @@ Here's how it typically works:
 - Vendors provide their  own interrupt controller logic  in silicon around the ARM7 core.
 - The controller handles  IRQ  (normal interrupt) and  FIQ  (fast interrupt).
 
----
+=====================================================================================================
 
-### 🧠 How It Works
+###   How It Works
 
 1.  ARM7 core  has two interrupt lines:
    -  IRQ  (Interrupt Request)
@@ -28,7 +27,7 @@ Here's how it typically works:
    - Sets interrupt flags and priorities.
    - The firmware checks the controller to find  which source triggered the IRQ .
 
----
+=====================================================================================================
 
 ### 📦 Example: LPC2148 (ARM7TDMI-S by NXP)
 
@@ -39,7 +38,7 @@ Here's how it typically works:
 
 ---
 
-### 💡 Key Points:
+###   Key Points:
 
 | Feature              | Description |
 |----------------------|-------------|
@@ -51,7 +50,7 @@ Here's how it typically works:
 
 ---
 
-### 📜 Sample Code Snippet (LPC2148 - VIC):
+###  Sample Code Snippet (LPC2148 - VIC):
 
 VICIntSelect &= ~(1 << 4);  			// Use IRQ for Timer0
 VICVectCntl0 = (1 << 5) | 4;  			// Enable slot 0, interrupt source 4 (Timer0)
@@ -64,9 +63,9 @@ Would you like details on a specific ARM7-based chip or how to set up an interru
 
 Great question! Here's a breakdown of  ARM-based microcontrollers that don’t have a built-in interrupt controller like the NVIC  (used in Cortex-M cores):
 
----
+================================================================================================================
 
-### 🚫 ARM Cores Without Built-in Interrupt Controllers (like NVIC)
+###  ARM Cores Without Built-in Interrupt Controllers (like NVIC)
 
 These older ARM cores  rely on external or vendor-supplied interrupt controllers :
 
@@ -77,9 +76,9 @@ These older ARM cores  rely on external or vendor-supplied interrupt controllers
 |  ARM10            | ❌ No                              | Requires external interrupt controller        |
 |  ARM11            | ❌ No                              | External or vendor-specific controller       |
 
----
+================================================================================================================
 
-### ✅ ARM Cores With NVIC (Built-in Interrupt Controller)
+###   ARM Cores With NVIC (Built-in Interrupt Controller)
 
 These are part of the  ARM Cortex-M family , which always includes  NVIC :
 
@@ -92,19 +91,13 @@ These are part of the  ARM Cortex-M family , which always includes  NVIC :
 |  Cortex-M23 / M33    | ✅ NVIC                          |
 |  Cortex-M55          | ✅ NVIC                          |
 
----
+================================================================================================================
 
 ###  Summary
 
 -  Legacy ARM cores (ARM7, ARM9, ARM10, ARM11)  ➜ ❌ No NVIC, use external or vendor-specific interrupt controllers like VIC.
 -  Modern Cortex-M cores  ➜ ✅ Have NVIC built-in (more efficient, faster, better ISR handling).
-
----
-
-Would you like a list of real microcontrollers using ARM7 or ARM9 that require external interrupt controllers?
-
-------------
-
+================================================================================================================
 
 Great question! Let's walk through  how interrupts are handled in systems with external interrupt controllers (EIC)  like those used in  ARM7  or  ARM9-based microcontrollers .
 
@@ -139,7 +132,7 @@ Great question! Let's walk through  how interrupts are handled in systems with e
 
 ---------------------------------------------------------------------------------------------------------------------------
 
-### 🧠 Example: Vectored Interrupt Controller (VIC) in LPC2148
+###  Example: Vectored Interrupt Controller (VIC) in LPC2148
 
 void __irq IRQ_Handler(void) {
     void (*isr)(void);
@@ -148,9 +141,7 @@ void __irq IRQ_Handler(void) {
     VICVectAddr = 0;                    // Signal end of interrupt
 }
    
-
----
-
+================================================================================================================
 ### 💡 Key Responsibilities of External Interrupt Controllers:
 
 | Feature                | Role                                                                 |
@@ -161,7 +152,7 @@ void __irq IRQ_Handler(void) {
 |  IRQ vs FIQ routing  | Routes interrupts based on urgency/priority                         |
 |  Status Registers    | Tells software which interrupt source is pending                    |
 
----
+================================================================================================================
 
 ### 🔄 Compared to NVIC in Cortex-M:
 
@@ -204,6 +195,7 @@ void __irq IRQ_Handler(void)
 ✅ Here, VICVectAddr points to the correct ISR address.
 ✅ VIC automatically figured out which peripheral triggered first.
 
+================================================================================================================
 
 Step | Action
 Peripheral triggers interrupt | External controller captures it
@@ -214,6 +206,7 @@ Stub calls ISR 				  | ISR handles the peripheral event
 Awesome! Let's go a little deeper with memory layout / address mapping during interrupt handling on ARM7 systems (like LPC2148).
 
 Address (Hex)   | Purpose | Notes
+================================================================================================================
 0x00 	    	| Reset Vector | CPU jumps here on reset
 0x04		    | Undefined Instruction Vector | -
 0x08 			| Software Interrupt Vector | -
@@ -235,6 +228,7 @@ Now, inside IRQ_Handler, you read a special register from VIC (at a fixed addres
 
 
 Register 	 	| Address (Example for LPC2148) | Purpose
+================================================================================================================
 VICIRQStatus 	| 0xFFFFF000 					| Shows which interrupt is active
 VICVectAddr  	| 0xFFFFF030 					| Holds ISR address (highest priority active)
 VICVectAddr0-15 | 0xFFFFF100 - 0xFFFFF13C 		| Pre-programmed addresses for each vector slot
@@ -269,12 +263,12 @@ VICVectAddr0-15 | 0xFFFFF100 - 0xFFFFF13C 		| Pre-programmed addresses for each 
 [ Normal execution resumes ]
 
 
----------------------------------------------------------------------------------------------------------------------------
+================================================================================================================
 Excellent question — this is where the magic of  setup before runtime  comes in. The  vector address register doesn’t "know" on its own  —  you, the programmer, tell it which handler to call  during initialization.
 
 Let me break it down for you clearly:
 
----
+================================================================================================================
 
 ## 🔁 How  VICVectAddrX  Stores the ISR Address
 
@@ -295,7 +289,7 @@ VICVectAddr0 = (unsigned)timer0_ISR;    // Store address of the Timer0 ISR
 
 https://www.nxp.com/docs/en/user-guide/UM10139.pdf
 
----
+================================================================================================================
 
 ## 🧠 How Does It Work?
 
@@ -308,7 +302,7 @@ Let’s say Timer0 fires an interrupt:
 5. Loads that address into the  global  VICVectAddr  register .
 6. The  generic IRQ handler  reads  VICVectAddr  and calls the function there.
 
----
+================================================================================================================
 
 ### 🔄 So the decision happens like this:
 
@@ -320,7 +314,7 @@ Let’s say Timer0 fires an interrupt:
 
 ---
 
-### 🎯 Quick Analogy:
+###   Quick Analogy:
 
 Think of  VICVectAddr0–15  as  a row of lockers , and you put the ISR addresses inside.
 
@@ -330,19 +324,15 @@ Then when an interrupt happens, VIC:
 - Finds the correct ISR address.
 - Hands it to your generic handler.
 
----
-
 =======================================================================================
-
-Interrupt handling with NVIC  ( cortex m3 M4 ) 
+			Interrupt handling with NVIC  ( cortex m3 M4 ) 
+            Interrupt handling with NVIC  ( cortex m3 M4 ) 
 =======================================================================================
 
 ### Interrupt Handling in Cortex-M4 Processors
 
 Interrupts in the Cortex-M4 are managed by the  Nested Vectored Interrupt Controller (NVIC) , which provides low-latency and efficient interrupt handling. 
 Below is a detailed explanation of how interrupts are handled, followed by a specific scenario with step-by-step execution.
-
----
 
 ###  General Steps for Interrupt Handling 
 1.  Interrupt Occurs   
@@ -364,7 +354,7 @@ Below is a detailed explanation of how interrupts are handled, followed by a spe
    - The ISR completes and executes a  return instruction  (e.g.,  BX LR  with a special  EXC_RETURN  value).
    - The processor restores the saved context from the stack and resumes the interrupted code.
 
----
+=======================================================================================
 
 ###  Specific Scenario: Handling a UART Receive Interrupt 
 Assume a UART peripheral generates an interrupt when data is received.
@@ -399,7 +389,7 @@ Assume a UART peripheral generates an interrupt when data is received.
    - The processor restores the saved registers from the stack.
    - Execution resumes at the instruction where the interrupt occurred.
 
----
+=======================================================================================
 
 ###  Key Registers Involved 
 -  NVIC Registers :
@@ -438,7 +428,6 @@ int main(void) {
     while (1) { /* Main loop */ }
 }
    
-
 ---------------------------------------------------------------------------------------------------------------------------
 
 ###  Summary 
@@ -450,8 +439,7 @@ int main(void) {
 
 This mechanism ensures  low-latency  and  deterministic  interrupt handling, critical for real-time systems. The Cortex-M4’s NVIC automates most steps, reducing software overhead.
 
-
-======================================
+=======================================================================================
 
 
 ###  Fetching the ISR Address: Default vs. Custom Handlers 
@@ -554,16 +542,14 @@ This mechanism ensures  low-latency  and  deterministic  interrupt handling, cri
 
 For a practical implementation, refer to your MCU’s  startup file  and  reference manual  for IRQ naming conventions.
 
-=================
-
-
-Sure! In the  latest ARM Cortex-M  cores (like M33, M55, M85), interrupt handling usually uses the  NVIC  and a central function like  generic_handle_irq()  (or similar), especially in OS environments like  CMSIS, Zephyr, or Linux (on Cortex-A/R) .
+=======================================================================================
+In the  latest ARM Cortex-M  cores (like M33, M55, M85), interrupt handling usually uses the  NVIC  and a central function like  generic_handle_irq()  (or similar), especially in OS environments like  CMSIS, Zephyr, or Linux (on Cortex-A/R) .
 
 But since you're asking about  Cortex-M (latest) , here’s a modern-style   generic_handle_irq() -like function  used in bare metal or RTOS-style systems with NVIC:
 
 ---
 
-### ✅ Example:  generic_handle_irq()  for Cortex-M33/M55/M85
+###  Example:  generic_handle_irq()  for Cortex-M33/M55/M85
 
 #include "cmsis.h"
 
@@ -582,10 +568,9 @@ void generic_handle_irq(void) {
     }
 }
    
+=======================================================================================
 
----
-
-### 🔧 Requirements:
+###   Requirements:
 
 - You need to define a global  irq_vector_table[] , like:
 
@@ -599,7 +584,7 @@ irq_vector_table[UART1_IRQn]  = uart1_handler;
 
 ---
 
-### 💡 Why is  IPSR  used?
+###   Why is  IPSR  used?
 
 - The  IPSR  register tells you which interrupt is currently active.
 - Exception numbers 0–15 are for system exceptions (Reset, NMI, SysTick, etc.)
